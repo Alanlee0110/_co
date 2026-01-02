@@ -36,36 +36,38 @@
     0;JMP
 
 (DRAW)
-    // Initialize pointer
-    @SCREEN     // SCREEN address 16384
+    // 1. 初始化螢幕指標 (從 SCREEN 開始)
+    @SCREEN
     D=A
     @addr
     M=D
 
-    // Initialize counter (8192 words)
+    // 2. 初始化計數器 (倒數 8192 次)
     @8192
     D=A
     @counter
     M=D
 
 (NEXT_PIXEL)
+    // 檢查：如果計數器歸零，就跳出
     @counter
     D=M
     @LOOP
-    D;JEQ       // If counter == 0, go back to LOOP
+    D;JEQ    // 如果 counter == 0，畫完了，跳回主迴圈偵測鍵盤
 
-    // Fill logic
+    // 執行填色
     @fillval
-    D=M         // Get color
+    D=M      // 取出顏色 (-1 或 0)
     @addr
-    A=M         // Get address of current pixel
-    M=D         // Paint it
+    A=M      // 取出目前要畫的螢幕位址
+    M=D      // 塗色！
 
-    // Increment pointer, Decrement counter
+    // 更新變數
     @addr
-    M=M+1
+    M=M+1    // 指標往下移一格
     @counter
-    M=M-1
+    M=M-1    // 計數器扣 1
 
+    // 繼續畫下一格
     @NEXT_PIXEL
     0;JMP
