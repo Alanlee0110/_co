@@ -6,8 +6,8 @@
  * The complete address space of the Hack computer's memory,
  * including RAM and memory-mapped I/O. 
  * The chip facilitates read and write operations, as follows:
- *     Read:  out(t) = Memory[address(t)](t)
- *     Write: if load(t-1) then Memory[address(t-1)](t) = in(t-1)
+ * Read:  out(t) = Memory[address(t)](t)
+ * Write: if load(t-1) then Memory[address(t-1)](t) = in(t-1)
  * In words: the chip always outputs the value stored at the memory 
  * location specified by address. If load=1, the in value is loaded 
  * into the memory location specified by address. This value becomes 
@@ -25,5 +25,40 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-	//// Replace this comment with your code.
+    // ------------------------------------------
+    // 1. 寫入邏輯 (Routing the 'load' signal)
+    // ------------------------------------------
+    // 使用 DMux 根據 address[14] 將 load 信號分流
+    // address[14] == 0 -> 存取 RAM
+    // address[14] == 1 -> 存取 I/O (Screen 或 Keyboard)
+    DMux(in=load, sel=address[14], a=loadRAM, b=loadIO);
+
+    // 如果是 I/O 區域，再用 address[13] 分流
+    // address[13] == 0 -> Screen
+    // address[13] == 1 -> Keyboard (Keyboard 是唯讀的，所以 loadKBD 實際上不會用到)
+    DMux(in=loadIO, sel=address[13], a=loadScreen, b=loadKBD);
+
+    // ------------------------------------------
+    // 2. 實例化記憶體單元 (Components)
+    // ------------------------------------------
+    
+    // RAM16K: 使用低 14 位元 (address[0..13])
+    RAM16K(in=in, load=loadRAM, address=address[0..13], out=outRAM);
+
+    // Screen: 使用低 13 位元 (address[0..12])
+    Screen(in=in, load=loadScreen, address=address[0..12], out=outScreen);
+
+    // Keyboard: 不需要 address 和 load，只有輸出
+    Keyboard(out=outKBD);
+
+    // ------------------------------------------
+    // 3. 讀取邏輯 (Selecting the output)
+    // ------------------------------------------
+    // 根據 address[13..14] 決定最終輸出誰的值
+    // 00 (RAM)    -> 輸出 outRAM
+    // 01 (RAM)    -> 輸出 outRAM (因為 RAM 佔據了前半段所有空間)
+    // 10 (Screen) -> 輸出 outScreen
+    // 11 (KBD)    -> 輸出 outKBD
+    
+    Mux4Way16(a=outRAM, b=outRAM, c=outScreen, d=outKBD, sel=address[13..14], out=out);
 }

@@ -7,17 +7,29 @@
  * Parses the binary code in the instruction input and executes it according to the
  * Hack machine language specification. In the case of a C-instruction, computes the
  * function specified by the instruction. If the instruction specifies to read a memory
- * value, the inM input is expected to contain this value. If the instruction specifies
- * to write a value to the memory, sets the outM output to this value, sets the addressM
- * output to the target address, and asserts the writeM output (when writeM = 0, any
- * value may appear in outM).
- * If the reset input is 0, computes the address of the next instruction and sets the
- * pc output to that value. If the reset input is 1, sets pc to 0.
- * Note: The outM and writeM outputs are combinational: they are affected by the
- * instruction's execution during the current cycle. The addressM and pc outputs are
- * clocked: although they are affected by the instruction's execution, they commit to
- * their new values only in the next cycle.
+ // This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/5/CPU.hdl
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to RAM[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational. 
+ * The integer owner of the new address is found in addressM. 
+ * The pc output is clocked: instruction fetch from instruction memory
+ * at the new pc address will happen in the next time unit.
  */
+
 CHIP CPU {
 
     IN  inM[16],         // M value input  (M = contents of RAM[A])
@@ -32,5 +44,81 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-	//// Replace this comment with your code.
-}
+    
+    // -----------------------------
+    // 1. 指令解碼 (Instruction Decode)
+    // -----------------------------
+    // 判斷是 A 指令還是 C 指令
+    Not(in=instruction[15], out=isAInstruction);
+    Not(in=isAInstruction, out=isCInstruction);
+    
+    // -----------------------------
+    // 2. A Register (位址暫存器)
+    // -----------------------------
+    // 如果是 C 指令並且指定存入 A (d1=instruction[5])，或者如果是 A 指令，都要載入 A Register
+    And(a=isCInstruction, b=instruction[5], out=isLoadA);
+    Or(a=isAInstruction, b=isLoadA, out=loadA);
+    
+    // A Register 的輸入來源：如果是 A 指令，來源是 instruction 本身；如果是 C 指令，來源是 ALU 的計算結果 (aluOut)
+    Mux16(a=instruction, b=aluOut, sel=isCInstruction, out=inA);
+    
+    ARegister(in=inA, load=loadA, out=outA, out[0..14]=addressM);
+
+    // -----------------------------
+    // 3. D Register (數據暫存器)
+    // -----------------------------
+    // 只有在 C 指令且指定存入 D (d2=instruction[4]) 時才載入
+    And(a=isCInstruction, b=instruction[4], out=loadD);
+    DRegister(in=aluOut, load=loadD, out=outD);
+
+    // -----------------------------
+    // 4. ALU (算術邏輯單元)
+    // -----------------------------
+    // ALU 的輸入 y：決定是用 A Register 的值還是 Memory (inM) 的值
+    // 取決於 C 指令的 a 位元 (instruction[12])
+    Mux16(a=outA, b=inM, sel=instruction[12], out=aluInputY);
+
+    ALU(
+        x=outD,             // X 輸入永遠來自 D Register
+        y=aluInputY,        // Y 輸入來自 A 或 M
+        zx=instruction[11], // c1: zero the x input?
+        nx=instruction[10], // c2: negate the x input?
+        zy=instruction[9],  // c3: zero the y input?
+        ny=instruction[8],  // c4: negate the y input?
+        f=instruction[7],   // c5: compute out = x + y (if 1) or x & y (if 0)
+        no=instruction[6],  // c6: negate the out output?
+        out=aluOut,         // ALU 計算結果 -> 這是內部線路
+        out=outM,           // 同時也是輸出的 outM
+        zr=zr,              // 輸出是否為 0
+        ng=ng               // 輸出是否為負
+    );
+
+    // -----------------------------
+    // 5. WriteM (寫入記憶體控制)
+    // -----------------------------
+    // 只有在 C 指令且指定存入 M (d3=instruction[3]) 時，writeM 才為 true
+    And(a=isCInstruction, b=instruction[3], out=writeM);
+
+    // -----------------------------
+    // 6. PC Logic (程式計數器 / 跳轉邏輯)
+    // -----------------------------
+    // 判斷是否滿足跳轉條件 (Jump Logic)
+    // j1=instruction[2] (跳轉 if < 0)
+    // j2=instruction[1] (跳轉 if = 0)
+    // j3=instruction[0] (跳轉 if > 0)
+    
+    // 檢查輸出結果的狀態 (利用 ALU 的 zr, ng)
+    And(a=instruction[2], b=ng, out=jlt);    // 小於且要求跳轉
+    And(a=instruction[1], b=zr, out=jeq);    // 等於且要求跳轉
+    
+    // 大於的條件比較麻煩，因為 ALU 只有給 ng (負) 和 zr (零)。
+    // 正數 (positive) 意味著：既不是負的，也不是零。
+    Or(a=ng, b=zr, out=zeroOrNeg);
+    Not(in=zeroOrNeg, out=pos);             // pos 代表大於 0
+    And(a=instruction[0], b=pos, out=jgt);  // 大於且要求跳轉
+
+    // 整合所有跳轉條件
+    Or(a=jlt, b=jeq, out=jle);
+    Or(a=jle, b=jgt, out=jumpConditionMet);
+
+    // 只有在是 C 指令時，跳轉條件才有效

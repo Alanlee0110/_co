@@ -9,7 +9,8 @@
 CHIP And {
     IN a, b;
     OUT out;
-    
-    PARTS:
-    //// Replace this comment with your code.
+
+    PARTS:    
+    Nand(a=a, b=b, out=nandOut);         
+    Nand(a=nandOut, b=nandOut, out=out); 
 }

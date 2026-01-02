@@ -18,5 +18,33 @@ CHIP Computer {
     IN reset;
 
     PARTS:
-    //// Replace this comment with your code.
+    // 1. CPU (中央處理器)
+    // CPU 負責執行指令。它從 ROM 讀取指令，從 Memory 讀取數據，
+    // 然後計算結果，並決定要寫回 Memory 的數據以及下一個指令的位址 (PC)。
+    CPU(
+        inM = memOut,           // 來自 Memory 的數據輸入
+        instruction = instruction, // 來自 ROM 的指令輸入
+        reset = reset,          // 外部輸入的 reset 信號
+        outM = outM,            // 輸出給 Memory 的數據
+        writeM = writeM,        // 是否寫入 Memory 的控制信號
+        addressM = addressM,    // 指定 Memory 的位址
+        pc = pc                 // 指定 ROM 下一個指令的位址
+    );
+
+    // 2. Memory (數據記憶體)
+    // 包含 RAM, Screen, Keyboard。
+    // 根據 CPU 給的 addressM 和 writeM 來讀寫數據。
+    Memory(
+        in = outM,              // 來自 CPU 的數據
+        load = writeM,          // 來自 CPU 的寫入控制信號
+        address = addressM,     // 來自 CPU 的位址
+        out = memOut            // 輸出數據給 CPU
+    );
+
+    // 3. ROM32K (指令記憶體)
+    // 存放程式碼。根據 CPU 給的 PC (Program Counter) 吐出當前的指令。
+    ROM32K(
+        address = pc,           // 來自 CPU 的程式計數器
+        out = instruction       // 輸出指令給 CPU
+    );
 }
