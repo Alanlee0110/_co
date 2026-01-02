@@ -9,66 +9,71 @@
 // the screen should be cleared.
 
 (LOOP)
-    // 1. Get keyboard input
+    // 1. 監聽鍵盤
     @KBD
-    D=M         // Read RAM[24576]
-
-    // 2. Check if key pressed
+    D=M         // 讀取鍵盤輸入
+    
     @ON
-    D;JGT       // If D > 0 (key pressed), jump to ON
+    D;JGT       // 如果 D > 0 (有按鍵)，跳去設定黑色
+    
     @OFF
-    0;JMP       // Else jump to OFF
+    0;JMP       // 否則跳去設定白色
 
 (ON)
+    // 設定填色值為 -1 (全黑 1111111111111111)
     @-1
-    D=A         // D = -1 (all black)
+    D=A
     @fillval
-    M=D         // fillval = -1
-    @DRAW
+    M=D
+    @DRAW       // 跳去繪圖
     0;JMP
 
 (OFF)
+    // 設定填色值為 0 (全白 0000000000000000)
     @0
-    D=A         // D = 0 (all white)
+    D=A
     @fillval
-    M=D         // fillval = 0
-    @DRAW
+    M=D
+    @DRAW       // 跳去繪圖
     0;JMP
 
 (DRAW)
-    // 1. 初始化螢幕指標 (從 SCREEN 開始)
+    // 2. 初始化繪圖迴圈
+    // 設定螢幕起始位址
     @SCREEN
     D=A
     @addr
-    M=D
+    M=D         // addr = 16384
 
-    // 2. 初始化計數器 (倒數 8192 次)
+    // 設定計數器 (倒數 8192 次)
+    // 這樣可以確保絕對不會畫超過範圍 (解決 24577 錯誤)
     @8192
     D=A
     @counter
     M=D
 
 (NEXT_PIXEL)
-    // 檢查：如果計數器歸零，就跳出
+    // 3. 檢查是否畫完
     @counter
     D=M
     @LOOP
-    D;JEQ    // 如果 counter == 0，畫完了，跳回主迴圈偵測鍵盤
+    D;JEQ       // 如果 counter == 0，畫完了，跳回主迴圈偵測鍵盤
 
-    // 執行填色
+    // 4. 執行填色
     @fillval
-    D=M      // 取出顏色 (-1 或 0)
+    D=M         // 取出剛剛決定的顏色 (-1 或 0)
+    
     @addr
-    A=M      // 取出目前要畫的螢幕位址
-    M=D      // 塗色！
+    A=M         // 取出目前螢幕指標指向的位址
+    M=D         // 把顏色畫上去
 
-    // 更新變數
+    // 5. 更新變數
     @addr
-    M=M+1    // 指標往下移一格
+    M=M+1       // 螢幕指標往下移一格
     @counter
-    M=M-1    // 計數器扣 1
+    M=M-1       // 剩餘次數減 1
 
-    // 繼續畫下一格
+    // 6. 繼續下一個點
     @NEXT_PIXEL
     0;JMP
 
