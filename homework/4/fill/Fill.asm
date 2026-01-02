@@ -3,46 +3,46 @@
 // by Nisan and Schocken, MIT Press.
 // File name: projects/4/Fill.asm
 
-// Runs an infinite loop that listens to the keyboard input. 
+// Runs an infinite loop that listens to the keyboard input.
 // When a key is pressed (any key), the program blackens the screen,
-// i.e. writes "black" in every pixel. When no key is pressed, 
+// i.e. writes "black" in every pixel. When no key is pressed,
 // the screen should be cleared.
 
 (LOOP)
-    // 1. 取得鍵盤輸入
+    // 1. Get keyboard input
     @KBD
-    D=M         // 讀取鍵盤 RAM[24576] 的值放入 D 暫存器
+    D=M         // Read RAM[24576]
 
-    // 2. 判斷是否按下按鍵
+    // 2. Check if key pressed
     @ON
-    D;JGT       // 如果 D > 0 (有按鍵)，跳轉到 (ON)標籤
+    D;JGT       // If D > 0 (key pressed), jump to ON
     @OFF
-    0;JMP       // 否則跳轉到 (OFF)標籤
+    0;JMP       // Else jump to OFF
 
 (ON)
     @-1
-    D=A         // D = -1 (二進位 1111...1111，全黑)
+    D=A         // D = -1 (all black)
     @fillval
-    M=D         // 將 -1 存入變數 fillval
+    M=D         // fillval = -1
     @DRAW
-    0;JMP       // 跳去執行繪圖
+    0;JMP
 
 (OFF)
     @0
-    D=A         // D = 0 (全白)
+    D=A         // D = 0 (all white)
     @fillval
-    M=D         // 將 0 存入變數 fillval
+    M=D         // fillval = 0
     @DRAW
-    0;JMP       // 跳去執行繪圖
+    0;JMP
 
 (DRAW)
-    // 初始化螢幕指標
-    @SCREEN     // SCREEN 的位址是 16384
+    // Initialize pointer
+    @SCREEN     // SCREEN address 16384
     D=A
-    @addr       // addr 變數用來記錄目前畫到哪個記憶體位址
+    @addr
     M=D
 
-    // 初始化計數器 (螢幕共有 256列 * 32個word = 8192 個暫存器)
+    // Initialize counter (8192 words)
     @8192
     D=A
     @counter
@@ -52,20 +52,20 @@
     @counter
     D=M
     @LOOP
-    D;JEQ       // 如果 counter == 0，代表畫完整個螢幕，跳回主迴圈 (LOOP) 重新檢查鍵盤
+    D;JEQ       // If counter == 0, go back to LOOP
 
-    // 執行填色
+    // Fill logic
     @fillval
-    D=M         // 取出決定好的顏色 (-1 或 0)
+    D=M         // Get color
     @addr
-    A=M         // A = 目前的螢幕記憶體位址
-    M=D         // 將顏色寫入 RAM[addr]
+    A=M         // Get address of current pixel
+    M=D         // Paint it
 
-    // 更新指標與計數器
+    // Increment pointer, Decrement counter
     @addr
-    M=M+1       // addr 指向下一個位址
+    M=M+1
     @counter
-    M=M-1       // counter 減 1
+    M=M-1
 
     @NEXT_PIXEL
-    0;JMP       // 繼續畫下一個像素區塊
+    0;JMP
