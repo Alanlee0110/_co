@@ -71,3 +71,7 @@
     // 繼續畫下一格
     @NEXT_PIXEL
     0;JMP
+
+    (END)
+    @END
+    0;JMP
