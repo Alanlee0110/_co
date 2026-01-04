@@ -153,7 +153,7 @@ Hack 的 ALU 硬體只會做加法，不會乘法。我們必須用軟體 (程�
 
 Project 5: 電腦架構 (Computer Architecture)
 
-19. Memory (整體記憶體)
+1. Memory (整體記憶體)
 輸入： in[16], load, address[15]
 
 輸出： out[16]
@@ -168,7 +168,7 @@ Project 5: 電腦架構 (Computer Architecture)
 
 實作提示： 使用 DMux 根據 address 的高位元來分流。
 
-20. CPU (中央處理器)
+2. CPU (中央處理器)
 輸入： inM, instruction, reset
 
 輸出： outM, writeM, addressM, pc
@@ -181,7 +181,7 @@ Project 5: 電腦架構 (Computer Architecture)
 
 控制單元： 根據 ALU 的結果 (zr, ng) 和指令的跳轉位元 (j1~j3) 決定 PC 是否要跳轉。
 
-21. Computer (Hack 電腦)
+3. Computer (Hack 電腦)
 零件： ROM32K (程式唯讀記憶體), CPU, Memory。
 
 ROM 給 CPU 指令。
@@ -189,3 +189,122 @@ ROM 給 CPU 指令。
 CPU 讀寫 Memory 數據。
 
 Memory 包含 I/O (螢幕鍵盤) 與使用者互動。
+
+
+期末作業(6-12章)
+
+作業說明:6-12章都由gemini設計,在由gemini說明
+
+
+Project 6: Assembler (組譯器)
+這是軟體的最底層。
+
+核心機制：字串處理 (String Manipulation) 與 查表 (Look-up Table)。
+
+技術細節：
+
+符號解析：你的程式需要建立一個 SymbolTable (雜湊表/字典)。當讀到 (LOOP) 時，記下當前的 ROM 地址；當讀到 @sum 時，分配一個新的 RAM 地址。
+
+二進位轉換：將 D=M+1 拆解，查表得知 dest=D 是 010，comp=M+1 是 1110111，最後拼湊成 16-bit 字串。
+
+兩次掃描 (Two-Pass)：第一次唯讀標籤，第二次才翻譯指令，解決「先跳轉後定義」的問題。
+
+
+Project 7: VM I - Stack Arithmetic (堆疊運算)
+這是 VM 的心臟。VM 模型是基於「堆疊 (Stack)」的，這比暫存器模型更容易編譯。
+
+核心機制：堆疊指標 (Stack Pointer, SP) 的操作。
+
+技術細節：
+
+記憶體映射：你需要實作如何將 local 2 (區域變數) 轉換成 RAM[LCL + 2] 的物理地址。
+
+算術翻譯：當 VM 讀到 add 時，你的 Translator 要生成一段 Assembly 代碼：
+
+SP-- (取出 y)
+
+SP-- (取出 x)
+
+D = x + y
+
+SP++ (把結果 D 放回去)
+
+邏輯比較：實作 eq (等於) 時，需要利用 Assembly 的跳轉指令 (JEQ) 來模擬 True (-1) 和 False (0) 的結果。
+
+
+Project 8: VM II - Program Control (流程控制)
+這是 VM 的大腦，處理最複雜的「函數呼叫」。
+
+核心機制：堆疊幀 (Stack Frame) 與 返回地址 (Return Address)。
+
+技術細節：
+
+Function Call：當呼叫 call f 時，你必須把當下的狀態 (Return Address, LCL, ARG, THIS, THAT) 全部 push 到堆疊上保存起來，然後跳轉到函數 f。
+
+Function Return：當函數結束 return 時，你必須從堆疊中把剛剛存的那些狀態恢復回來，並跳轉回呼叫點的下一行。
+
+Bootstrap：撰寫一段啟動代碼 (Sys.init)，初始化 SP 指標並開始執行程式。
+
+
+Project 9: High-Level Language (Jack 語言)
+這是為了讓你體驗「使用者」的感覺。
+
+核心機制：物件導向編程 (OOP)。
+
+技術細節：
+
+你會學到 Jack 語言的特性：它是強型別的 (Strongly typed)，有 class (類別)、method (方法)、function (靜態函數)。
+
+你需要習慣手動管理記憶體 (do memory.deAlloc(this))，因為 Jack 沒有 Garbage Collection (垃圾回收)。
+
+
+Project 10: Compiler I - Syntax Analysis (語法分析)
+這是編譯器的前端。
+
+核心機制：詞法分析 (Tokenizing) 與 語法分析 (Parsing)。
+
+技術細節：
+
+Tokenizer：把原始碼字串 while (i<0) { 切割成 Token 列表：keyword: while, symbol: (, identifier: i...。
+
+Parser：根據 Jack 的語法規則 (Context-Free Grammar)，將 Token 組裝成一棵 語法樹 (Parse Tree)。
+
+XML 輸出：將這棵樹印成 XML 格式，例如 <keyword> while </keyword>，用來驗證你的結構是否正確。
+
+
+Project 11: Compiler II - Code Generation (代碼生成)
+這是編譯器的後端，也是整個課程最難的一步。
+
+核心機制：符號表 (Symbol Table) 與 遞迴下降編譯 (Recursive Descent)。
+
+技術細節：
+
+變數管理：你需要兩個符號表，一個是 Class 級別 (Field/Static)，一個是 Subroutine 級別 (Local/Argument)。編譯器要能分辨 x 到底是區域變數還是物件屬性。
+
+表達式編譯：將中綴運算式 a + b * c 轉換成後綴堆疊操作。你需要先推入 a，推入 b，推入 c，呼叫 multiply，再呼叫 add。
+
+物件操作：處理 b.move() 這種方法呼叫時，你需要隱藏地將 b (即 this 指標) 作為第一個參數傳遞進去。
+
+
+Project 12: The Operating System
+這不是像 Windows/Linux 那種管理行程的核心，而是一組用 Jack 寫的基礎類別庫。
+
+核心機制：演算法效率與硬體驅動。
+
+技術細節 (你需要實作這 8 個 Class)：
+
+Math：硬體沒有乘法器，你需要用「位元位移 (Bit shifting)」演算法實作 multiply 和 divide (效率比連加法快得多)。
+
+String：實作整數與字串的轉換 (ASCII 碼處理)。
+
+Array：實作記憶體配置。
+
+Output：透過寫入 Screen Map 來顯示字元 (Bitmap Font)。
+
+Screen：實作 drawLine (畫線演算法) 和 drawCircle。你需要直接操作 RAM[16384] 的位元。
+
+Keyboard：監聽 RAM[24576] 獲取使用者輸入。
+
+Memory：實作 alloc (配置) 和 deAlloc (釋放)。你需要維護一個 Free List (空閒鏈結串列) 來管理堆積 (Heap) 記憶體。
+
+Sys：OS 的進入點與 wait (延遲) 函數。
